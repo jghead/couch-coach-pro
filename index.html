@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Couch Coach Fantasy — Power-Up Fantasy Football</title>
+<title>Couch Coach Fantasy — League Edition</title>
 <style>
   :root {
     --bg:#0b1020; --panel:#141b33; --panel2:#1b2444; --line:#2a3566;
@@ -447,7 +447,7 @@ function render(){
   if(!app.connectedLeague){ renderConnect(); return; }
   $("app").innerHTML="";
   const top=el("header","topbar");
-  top.innerHTML=`<div class="brand">🛋️ Couch Coach</div>
+  top.innerHTML=`<div class="brand">🛋️ Couch Coach <span class="pill" style="font-size:9px;padding:2px 7px">LEAGUE</span></div>
     <div style="display:flex;align-items:center;gap:9px">
       <button id="bellBtn" class="pill" style="background:none;cursor:pointer;color:var(--gold)">🔔</button>
       <button id="commishBtn" class="pill" style="background:none;cursor:pointer;${app.tab==='commish'?'color:#1a1300;background:var(--gold);border-color:var(--gold)':'color:var(--gold)'}">⚙️ Commish</button>
@@ -489,13 +489,13 @@ function renderLogin(){
   w.innerHTML=`
     <div class="logo">🛋️</div>
     <h1>Couch Coach Fantasy</h1>
-    <p class="sub">Your fantasy league — with power-ups.</p>
+    <p class="sub"><b style="color:var(--gold)">League Edition</b> — the standalone app. No Sleeper needed. Power-ups decide who wins.</p>
     <input class="input" id="u" placeholder="Email" value="greg@couchcoach.app"/>
     <input class="input" id="pw" type="password" placeholder="Password" value="password"/>
     <button class="btn" id="loginBtn">Log In</button>
-    <div class="small">New here? <b style="color:var(--gold)">Sign up free</b></div>`;
+    <div class="small">New here? <b style="color:var(--gold)">Sign up free</b> · Create or join a league</div>`;
   a.appendChild(w);
-  $("loginBtn").onclick=()=>{ app.loggedIn=true; render(); };
+  $("loginBtn").onclick=()=>{ app.loggedIn=true; app.connectedLeague="The Couch League"; app.sim=freshSim(); render(); };
 }
 
 // ============================ CONNECT SLEEPER ============================
@@ -552,6 +552,12 @@ function renderHome(){
   const s=$("screen"); if(!s) return; s.innerHTML="";
   const ms=total(myStarters), os=total(oppStarters);
   const done=app.sim.gameSec>=4*QSEC;
+
+  const banner=el("div","card");
+  banner.style.borderColor="var(--gold)";
+  banner.innerHTML=`<div style="font-weight:800">🏆 League Edition</div>
+    <div class="muted" style="font-size:12px;margin-top:4px">No Sleeper required — Couch Coach <b style="color:var(--txt)">is</b> the league. Your power-up-adjusted <b style="color:var(--gold)">CCF Score</b> decides every matchup, the standings, and the playoffs.</div>`;
+  s.appendChild(banner);
 
   const hero=el("div","card");
   hero.innerHTML=`<h2 class="title">Week 11 · Your Matchup</h2>
@@ -654,7 +660,7 @@ function renderMatchup(){
     return;
   }
 
-  s.appendChild(el("div","muted","<div style='font-size:11px;margin:-2px 0 12px;text-align:center'>🎮 Demo game — power-up gameplay preview. Live NFL scoring activates during the season.</div>"));
+  s.appendChild(el("div","muted","<div style='font-size:11px;margin:-2px 0 12px;text-align:center'>🏆 <b style='color:var(--gold)'>CCF Score</b> = base points + power-up effects. This number is the official result — it sets your W/L. <span style='opacity:.7'>(Demo data until the season.)</span></div>"));
 
   const ctl=el("div","row"); ctl.style.marginBottom="14px";
   const start=el("button","btn", app.sim.running?"⏸ Pause":(app.sim.gameSec>0?"▶ Resume":"▶ Kick Off"));
@@ -715,40 +721,43 @@ function lineupCard(title, arr, side){
   return c;
 }
 
-// ============================ MY TEAM (synced from Sleeper) ============================
-function roRow(p){
-  return el("div","plr",`<div class="pos">${p.pos}</div>
-    <div><div class="nm">${p.name}</div><div class="meta2">${statusTag(p)}${p.opp} · proj ${p.proj}</div></div>
-    <div class="pt">${p.proj}</div>`);
-}
+// ============================ MY TEAM (managed in-app — no Sleeper) ============================
+let swapPick=null;
 function renderTeam(){
   const s=$("screen"); s.innerHTML="";
-  const head=el("div","card");
-  head.innerHTML=`<h2 class='title'>Your Lineup — Week 11</h2>
-    <div class='muted' style='font-size:12px'>🔗 Synced from <b style="color:var(--txt)">${app.connectedLeague}</b> on Sleeper. Edit your lineup in Sleeper and it updates here automatically — lineups lock at kickoff.</div>`;
-  head.appendChild(sleeperBtn("✏️ Set Lineup in Sleeper"));
-  s.appendChild(head);
+  s.appendChild(el("div","card",`<h2 class='title'>Set Your Lineup — Week 11</h2>
+    <div class='muted' style='font-size:12px'>Tap a bench player, then a starter of the same position to swap. Managed right here in Couch Coach — lineups lock at kickoff.</div>`));
   const start=el("div","card"); start.appendChild(el("h2","title","Starters"));
-  myStarters.forEach(p=> start.appendChild(roRow(p))); s.appendChild(start);
+  myStarters.forEach(p=> start.appendChild(rosterRow(p,true))); s.appendChild(start);
   const bench=el("div","card"); bench.appendChild(el("h2","title","Bench"));
-  myBench.forEach(p=> bench.appendChild(roRow(p))); s.appendChild(bench);
+  myBench.forEach(p=> bench.appendChild(rosterRow(p,false))); s.appendChild(bench);
+}
+function rosterRow(p,isStarter){
+  const d=el("div","plr"+(isStarter?"":" bench")+(swapPick===p?" tappable":""),
+    `<div class="pos">${p.pos}</div>
+     <div><div class="nm">${p.name}</div><div class="meta2">${statusTag(p)}${p.opp} · proj ${p.proj}</div></div>
+     <div class="pt">${p.proj}</div>`);
+  d.onclick=()=>{
+    if(!isStarter){ swapPick=swapPick===p?null:p; renderTeam(); return; }
+    if(swapPick){ if(swapPick.pos!==p.pos){ toast(`Swap needs a ${p.pos}`); return; }
+      const bi=myBench.indexOf(swapPick), si=myStarters.indexOf(p);
+      myStarters[si]=swapPick; myBench[bi]=p; swapPick=null; toast("Lineup updated ✓"); renderTeam(); }
+  };
+  return d;
 }
 
-// ============================ PLAYERS (browse here, claim in Sleeper) ============================
+// ============================ PLAYERS (in-app add/drop — no Sleeper) ============================
 function renderPlayers(){
   const s=$("screen"); s.innerHTML="";
-  const head=el("div","card");
-  head.innerHTML=`<h2 class='title'>Free Agents & Waiver Wire</h2>
-    <div class='muted' style='font-size:12px'>FAAB budget: <b style='color:var(--gold)'>$74</b> · Browse here, claim in Sleeper. Waivers process in Sleeper, Wed 3 AM.</div>`;
-  head.appendChild(sleeperBtn("🔁 Manage Waivers in Sleeper"));
-  s.appendChild(head);
+  s.appendChild(el("div","card",`<h2 class='title'>Free Agents & Waiver Wire</h2>
+    <div class='muted' style='font-size:12px'>FAAB budget: <b style='color:var(--gold)'>$74</b> · Add and drop right here — waivers process Wed 3 AM.</div>`));
   const c=el("div","card");
   FREE_AGENTS.forEach(p=>{
     const row=el("div","plr",`<div class="pos">${p.pos}</div>
       <div><div class="nm">${p.name}</div><div class="meta2">${statusTag(p)}${p.opp} · proj ${p.proj}</div></div>
       <div></div>`);
-    const add=el("button","btn sm sec","Add ↗"); add.style.marginLeft="auto";
-    add.onclick=()=>window.open(sleeperLeagueUrl(),"_blank");
+    const add=el("button","btn sm","+ Add"); add.style.marginLeft="auto";
+    add.onclick=()=>{ toast(`Claim submitted for ${p.name}`); add.textContent="Claimed"; add.disabled=true; };
     row.lastElementChild.appendChild(add);
     c.appendChild(row);
   });
@@ -759,13 +768,13 @@ function renderPlayers(){
 function renderLeague(){
   const s=$("screen"); s.innerHTML="";
   const ts=el("div","tabset");
-  [["scoreboard","Scores"],["standings","Standings"],["schedule","Schedule"],["chat","Trash Talk"]].forEach(([id,lab])=>{
+  [["scoreboard","Scores"],["standings","Standings"],["playoffs","Playoffs"],["schedule","Schedule"],["chat","Chat"]].forEach(([id,lab])=>{
     const b=el("button",app.leagueTab===id?"on":"",lab); b.onclick=()=>{app.leagueTab=id;renderLeague();}; ts.appendChild(b);
   });
   s.appendChild(ts);
 
   if(app.leagueTab==="scoreboard"){
-    if(app.leagueData) s.appendChild(el("div","muted","<div style='font-size:11px;margin-bottom:10px;text-align:center'>🎮 Demo scores — live weekly matchups populate here during the NFL season.</div>"));
+    s.appendChild(el("div","muted","<div style='font-size:11px;margin-bottom:10px;text-align:center'>Week 11 — all scores are <b style='color:var(--gold)'>CCF Scores</b> (power-up adjusted).</div>"));
     const me=el("div","card");
     me.innerHTML=`<h2 class="title">Your Matchup</h2>
       <div class="row"><div><b style="color:var(--you)">Your Team</b><div class="muted" style="font-size:12px">7-3</div></div>
@@ -778,6 +787,8 @@ function renderLeague(){
         <div class="row" style="margin-top:6px"><div>${m.b}</div><b>${m.bs}</b></div>`;
       s.appendChild(c);
     });
+  } else if(app.leagueTab==="playoffs"){
+    renderPlayoffs(s);
   } else if(app.leagueTab==="standings"){
     const c=el("div","card");
     if(app.leagueData) c.appendChild(el("div","muted","<div style='font-size:11px;margin-bottom:8px;color:var(--you)'>✓ Live from Sleeper</div>"));
@@ -813,6 +824,45 @@ function renderLeague(){
     rowi.append(i,send); s.appendChild(rowi);
     i.focus();
   }
+}
+
+// ============================ PLAYOFFS BRACKET ============================
+function renderPlayoffs(s){
+  const lg=app.settings.league;
+  const n=lg.playoffTeams||6;
+  const seeds=getStandings().slice(0,n);
+  const start=parseInt((lg.playoffWeeks||"15-17").split("-")[0],10)||15;
+  const tl=(seed)=> seed
+    ? `<b style="color:${seed.me?'var(--you)':'var(--txt)'}">${seed.team}</b> <span class="muted" style="font-size:11px">(${seed.w}-${seed.l})</span>`
+    : '<span class="muted">TBD</span>';
+
+  s.appendChild(el("div","card",`<h2 class="title">🏆 Playoffs</h2>
+    <div class="muted" style="font-size:12px">Top <b style="color:var(--txt)">${n}</b> seeds by <b style="color:var(--gold)">CCF</b> record. Weeks ${start}–${start+2}. Seeds 1–2 get a first-round bye. Power-ups stay live all the way through.</div>`));
+
+  const sd=el("div","card"); sd.appendChild(el("h2","title","Seeds"));
+  seeds.forEach((t,i)=> sd.appendChild(el("div","schrow",
+    `<span class="wk">#${i+1}</span><span style="flex:1">${tl(t)}</span>
+     <span class="muted" style="font-size:11px">${i<2?'BYE':''}</span>`)));
+  s.appendChild(sd);
+
+  const round=(title,wk,pairs)=>{
+    const c=el("div","card"); c.appendChild(el("h2","title",`${title} · Wk ${wk}`));
+    pairs.forEach(([x,y,lab])=> c.appendChild(el("div","",
+      `<div style="padding:9px 0;border-top:1px solid var(--line);font-size:13px">
+        <div>${x}</div><div class="muted" style="font-size:10px;margin:3px 0">${lab||'vs'}</div><div>${y}</div></div>`)));
+    return c;
+  };
+  s.appendChild(round("Wild Card", start, [
+    [tl(seeds[2]), tl(seeds[5])],
+    [tl(seeds[3]), tl(seeds[4])],
+  ]));
+  s.appendChild(round("Semifinals", start+1, [
+    [tl(seeds[0])+' <span class="muted" style="font-size:11px">· bye</span>', '<span class="muted">Lowest Wild Card winner</span>'],
+    [tl(seeds[1])+' <span class="muted" style="font-size:11px">· bye</span>', '<span class="muted">Highest Wild Card winner</span>'],
+  ]));
+  s.appendChild(round("Championship", start+2, [
+    ['<span class="muted">Semifinal winner</span>', '<span class="muted">Semifinal winner</span>', '🏆 for it all'],
+  ]));
 }
 
 // ============================ STORE / EARN ============================
@@ -887,8 +937,7 @@ function renderCommish(){
 
   const intro=el("div","card");
   intro.innerHTML=`<h2 class="title">⚙️ Commissioner — League Settings</h2>
-    <div class="muted" style="font-size:12px">Scoring & league rules are mirrored from <b style="color:var(--txt)">${app.connectedLeague}</b> on Sleeper. The <b style="color:var(--gold)">⚡ Power-Up Rules</b> below are Couch Coach's own — set them here.</div>`;
-  intro.appendChild(sleeperBtn("Edit League Settings in Sleeper"));
+    <div class="muted" style="font-size:12px">This is the <b style="color:var(--gold)">League Edition</b> — Couch Coach is the source of truth. Scoring, the power-up rules, and your playoff format all live here and drive every result.</div>`;
   s.appendChild(intro);
 
   // Scoring presets
