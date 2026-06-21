@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Couch Coach Fantasy — Power-Up Fantasy Football</title>
+<style>
+  :root {
+    --bg:#0b1020; --panel:#141b33; --panel2:#1b2444; --line:#2a3566;
+    --txt:#e8ecf8; --muted:#8b97c4; --you:#34d399; --opp:#f87171;
+    --gold:#fbbf24; --ice:#60a5fa; --boost:#c084fc; --rare:#f59e0b;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    margin:0; font-family:-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(900px 500px at 50% -10%, #1a2347 0%, var(--bg) 55%);
+    color:var(--txt); padding-bottom:74px;
+  }
+  .app { max-width:520px; margin:0 auto; min-height:100vh; }
+  header.topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--line); position:sticky; top:0;
+    background:rgba(11,16,32,.92); backdrop-filter:blur(6px); z-index:20;
+  }
+  header.topbar .brand { font-weight:800; font-size:16px; display:flex; gap:8px; align-items:center; }
+  header.topbar .pill { font-size:11px; color:var(--gold); border:1px solid var(--line); padding:4px 9px; border-radius:20px; }
+  .screen { padding:16px; }
+  h2.title { font-size:13px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:0 0 12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px; }
+  .muted { color:var(--muted); }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  button { font-family:inherit; cursor:pointer; }
+  .btn { background:var(--gold); color:#1a1300; border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:14px; }
+  .btn.sec { background:var(--panel2); color:var(--txt); border:1px solid var(--line); }
+  .btn.sm { padding:7px 12px; font-size:13px; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  nav.tabbar {
+    position:fixed; bottom:0; left:0; right:0; display:flex; justify-content:center;
+    background:rgba(20,27,51,.97); border-top:1px solid var(--line); backdrop-filter:blur(8px); z-index:30;
+  }
+  nav.tabbar .inner { display:flex; max-width:520px; width:100%; overflow-x:auto; }
+  nav.tabbar button {
+    flex:1; background:none; border:none; color:var(--muted); padding:10px 2px 8px;
+    font-size:9px; white-space:nowrap; display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  nav.tabbar button .i { font-size:19px; }
+  nav.tabbar button.active { color:var(--gold); }
+
+  .login { display:flex; flex-direction:column; justify-content:center; min-height:100vh; padding:28px; max-width:520px; margin:0 auto; }
+  .login .logo { font-size:40px; text-align:center; }
+  .login h1 { text-align:center; font-size:26px; margin:6px 0 2px; }
+  .login p.sub { text-align:center; color:var(--muted); margin:0 0 26px; font-size:13px; }
+  .input { width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--txt);
+           border-radius:10px; padding:13px 14px; font-size:15px; margin-bottom:12px; }
+  .login .small { text-align:center; font-size:12px; color:var(--muted); margin-top:16px; }
+
+  .scoreboard { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; }
+  .ts { text-align:center; } .ts .nm { font-size:12px; color:var(--muted); }
+  .ts .pts { font-size:38px; font-weight:800; line-height:1; } .ts.me .pts{color:var(--you);} .ts.op .pts{color:var(--opp);}
+  .clock { text-align:center; padding:0 14px; }
+  .clock .q { font-size:11px; color:var(--gold); font-weight:700; } .clock .tt { font-size:24px; font-weight:800; }
+  .clock .st { font-size:10px; color:var(--muted); min-height:12px; }
+
+  .plr { display:grid; grid-template-columns:30px 1fr auto; gap:9px; align-items:center;
+         padding:9px 10px; border-radius:9px; background:var(--panel2); margin-bottom:7px; }
+  .plr .pos { font-size:10px; font-weight:800; color:var(--muted); background:#0d142b; border-radius:5px; padding:5px 0; text-align:center; }
+  .plr .nm { font-size:14px; font-weight:600; }
+  .plr .meta2 { font-size:10px; color:var(--muted); min-height:11px; }
+  .plr .pt { font-size:17px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .plr.frozen{opacity:.55;} .plr.frozen .meta2{color:var(--ice);}
+  .plr.boosted{box-shadow:0 0 0 1px var(--boost) inset;} .plr.boosted .meta2{color:var(--boost);}
+  .plr.bench{opacity:.85;}
+  .plr.tappable{cursor:pointer;border:1px solid var(--gold);}
+
+  .puwrap { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; }
+  .puchip { flex:0 0 auto; background:var(--panel2); border:1px solid var(--line); border-radius:12px;
+            padding:9px 11px; min-width:96px; text-align:center; position:relative; }
+  .puchip.armed { box-shadow:0 0 0 2px var(--gold) inset; }
+  .puchip.disabled { opacity:.4; }
+  .puchip .ic { font-size:20px; } .puchip .nm { font-size:11px; font-weight:700; margin-top:2px; }
+  .puchip .ct { font-size:10px; color:var(--gold); margin-top:3px; }
+  .puchip .cdbar { position:absolute; left:0; bottom:0; height:3px; background:var(--ice); }
+
+  .feed { height:120px; overflow-y:auto; font-size:12px; }
+  .feed .ln { padding:3px 0; border-bottom:1px solid #1a2244; }
+  .feed .t { color:var(--muted); margin-right:7px; }
+  .ev-pu { color:var(--gold); font-weight:600; } .ev-score{color:var(--txt);}
+
+  .tabset { display:flex; gap:8px; margin-bottom:14px; }
+  .tabset button { flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+                   border-radius:9px; padding:8px; font-size:12px; font-weight:600; }
+  .tabset button.on { color:var(--gold); border-color:var(--gold); }
+
+  table.std { width:100%; border-collapse:collapse; font-size:13px; }
+  table.std th { text-align:left; color:var(--muted); font-size:10px; text-transform:uppercase; padding:6px 4px; }
+  table.std td { padding:9px 4px; border-top:1px solid var(--line); }
+  table.std tr.me td { color:var(--you); font-weight:700; }
+
+  .schrow { display:flex; justify-content:space-between; padding:11px 4px; border-bottom:1px solid var(--line); font-size:13px; }
+  .schrow .wk { color:var(--muted); width:48px; } .schrow .res.w{color:var(--you);font-weight:700;} .schrow .res.l{color:var(--opp);font-weight:700;}
+
+  .store-item { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; }
+  .store-item .ic { font-size:26px; }
+  .rare-tag { font-size:9px; padding:2px 6px; border-radius:8px; background:#3a2a08; color:var(--rare); margin-left:6px; }
+  .cap-bar { height:8px; background:var(--panel2); border-radius:6px; overflow:hidden; margin-top:6px; }
+  .cap-bar > div { height:100%; background:var(--gold); }
+
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.78); display:flex; align-items:center; justify-content:center; z-index:50; padding:24px; }
+  .modal .box { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:340px; text-align:center; width:100%; }
+  .adscreen { background:linear-gradient(135deg,#1e293b,#0f172a); border-radius:12px; padding:34px 16px; margin-bottom:16px; }
+  .adscreen .big { font-size:34px; } .adscreen .ad-cd { font-size:13px; color:var(--muted); margin-top:8px; }
+  .toast { position:fixed; bottom:88px; left:50%; transform:translateX(-50%); background:var(--gold); color:#1a1300;
+           padding:10px 18px; border-radius:24px; font-weight:700; font-size:13px; z-index:60; box-shadow:0 6px 20px rgba(0,0,0,.4); }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div id="overlay"></div>
+
+<script>
+// ============================ DATA ============================
+const POWERUPS = {
+  double: { name:"Double Pts", icon:"⚡", rarity:"common", target:"me",  dur:120, cd:60,
+            desc:"Your player scores 2× for 2 minutes." },
+  freeze: { name:"Freeze",      icon:"🧊", rarity:"rare",   target:"op",  dur:60,  cd:90,
+            desc:"Opponent player scores ZERO for 1 minute." },
+  surge:  { name:"Hail Mary",   icon:"🚀", rarity:"rare",   target:"me",  dur:45,  cd:0,
+            desc:"3× points for 45s, but -5 if they don't score." },
+  shield: { name:"Bodyguard",   icon:"🛡️", rarity:"common", target:"me",  dur:180, cd:0,
+            desc:"Immune to Freeze & Pickpocket for 3 min." },
+  steal:  { name:"Pickpocket",  icon:"🧲", rarity:"rare",   target:"op",  dur:90,  cd:120,
+            desc:"Steal half an opponent's points for 90s." },
+  floor:  { name:"Sure Thing",  icon:"🎯", rarity:"common", target:"me",  dur:60,  cd:60,
+            desc:"Steady guaranteed points for 1 minute." },
+};
+const POS_CFG = { QB:{rate:.55,min:.4,max:5.5}, RB:{rate:.4,min:.3,max:4}, WR:{rate:.38,min:.3,max:6},
+                  TE:{rate:.28,min:.2,max:3.5}, K:{rate:.15,min:1,max:3}, DEF:{rate:.3,min:.5,max:5} };
+const WEEKLY_EARN_CAP = 4;
+
+let nid = 0;
+const P = (name,pos,proj,opp) => ({ id:"p"+(nid++), name, pos, proj, opp,
+  pts:0, frozen:0, boosted:0, mult:1, hailmary:false, shielded:0, robbed:0, floored:0 });
+
+const myStarters = [
+  P("J. Burrow","QB",21.4,"vs CLE"), P("B. Robinson","RB",17.8,"vs SEA"),
+  P("K. Williams","RB",13.2,"@ GB"), P("A. St. Brown","WR",18.9,"vs CHI"),
+  P("P. Nacua","WR",16.1,"@ SF"), P("T. McBride","TE",12.5,"vs LAR"),
+  P("J. Jeudy","WR",11.7,"vs CIN"), P("H. Butker","K",8.9,"@ DEN"),
+  P("Eagles D/ST","DEF",7.5,"vs NYG"),
+];
+const myBench = [ P("R. Rice","WR",10.2,"vs LV"), P("J. Mixon","RB",12.0,"@ TEN"),
+  P("D. Kincaid","TE",7.4,"vs MIA"), P("C. Boswell","K",8.1,"vs BAL") ];
+
+const oppStarters = [
+  P("P. Mahomes","QB",22.1,"@ DEN"), P("S. Barkley","RB",19.3,"vs NYG"),
+  P("D. Henry","RB",16.7,"vs CIN"), P("J. Jefferson","WR",20.2,"@ CHI"),
+  P("CeeDee Lamb","WR",17.4,"vs WAS"), P("G. Kittle","TE",13.1,"vs LAR"),
+  P("M. Nabers","WR",12.2,"@ PHI"), P("J. Tucker","K",9.2,"@ CIN"),
+  P("Ravens D/ST","DEF",8.0,"@ CIN"),
+];
+
+const FREE_AGENTS = [
+  P("J. Dobbins","RB",11.4,"@ KC"), P("W. Robinson","WR",9.8,"@ PHI"),
+  P("T. Hockenson","TE",9.1,"@ CHI"), P("J. Goff","QB",18.2,"@ MIN"),
+  P("R. Stevenson","RB",10.6,"vs NYJ"), P("K. Allen","WR",10.9,"vs LV"),
+  P("Steelers D/ST","DEF",7.2,"vs BAL"), P("J. Sanders","K",7.8,"vs NE"),
+];
+
+const LEAGUE = [
+  { team:"Your Team", w:7, l:3, pf:1284, me:true },
+  { team:"Gridiron Goblins", w:8, l:2, pf:1342 },
+  { team:"Dak to the Future", w:7, l:3, pf:1301 },
+  { team:"Burrow Bandits", w:6, l:4, pf:1255 },
+  { team:"Hurts So Good", w:5, l:5, pf:1198 },
+  { team:"CMC Hammer", w:5, l:5, pf:1176 },
+  { team:"Kelce's Angels", w:4, l:6, pf:1142 },
+  { team:"Waiver Wired", w:3, l:7, pf:1098 },
+  { team:"Bye Week Blues", w:3, l:7, pf:1055 },
+  { team:"The Tankers", w:2, l:8, pf:1011 },
+];
+const OTHER_MATCHUPS = [
+  { a:"Gridiron Goblins", as:96.4, b:"Hurts So Good", bs:88.1 },
+  { a:"Dak to the Future", as:102.7, b:"The Tankers", bs:71.3 },
+  { a:"CMC Hammer", as:79.5, b:"Kelce's Angels", bs:84.2 },
+  { a:"Waiver Wired", as:91.0, b:"Bye Week Blues", bs:90.6 },
+];
+const SCHEDULE = [
+  {wk:1,opp:"Bye Week Blues",res:"W",s:"112.4-98.1"},{wk:2,opp:"The Tankers",res:"W",s:"104.2-77.9"},
+  {wk:3,opp:"Gridiron Goblins",res:"L",s:"95.1-101.7"},{wk:4,opp:"CMC Hammer",res:"W",s:"120.6-88.3"},
+  {wk:5,opp:"Kelce's Angels",res:"W",s:"108.0-99.4"},{wk:6,opp:"Hurts So Good",res:"L",s:"89.2-94.0"},
+  {wk:7,opp:"Waiver Wired",res:"W",s:"115.3-101.1"},{wk:8,opp:"Dak to the Future",res:"L",s:"97.7-110.2"},
+  {wk:9,opp:"Burrow Bandits",res:"W",s:"103.5-92.8"},{wk:10,opp:"Bye Week Blues",res:"W",s:"99.9-85.4"},
+  {wk:11,opp:"Burrow Bandits",res:"—",s:"this week"},{wk:12,opp:"Gridiron Goblins",res:"—",s:"upcoming"},
+  {wk:13,opp:"Kelce's Angels",res:"—",s:"upcoming"},{wk:14,opp:"CMC Hammer",res:"—",s:"playoffs"},
+];
+
+// Injury / news flags (the real app reads these from Sleeper's player data)
+[["P. Nacua","Q"],["J. Mixon","OUT"]].forEach(([n,st])=>{ const p=[...myStarters,...myBench].find(x=>x.name===n); if(p)p.status=st; });
+{ const p=oppStarters.find(x=>x.name==="CeeDee Lamb"); if(p)p.status="Q"; }
+{ const p=FREE_AGENTS.find(x=>x.name==="J. Dobbins"); if(p)p.status="news"; }
+
+const CHAT_SEED=[
+  {who:"Gridiron Goblins", text:"good luck this week, you'll need it 😂", time:"9:12a"},
+  {who:"Burrow Bandits", text:"freeze my Mahomes and it's over between us", time:"9:31a"},
+  {who:"Kelce's Angels", text:"who dropped Dobbins?? grabbing him", time:"10:04a"},
+];
+const ACTIVITY=[
+  {ic:"🏥", txt:"<b>P. Nacua</b> listed Questionable (hamstring)", time:"22 min ago"},
+  {ic:"🔁", txt:"<b>Kelce's Angels</b> claimed J. Dobbins off waivers", time:"1 hr ago"},
+  {ic:"🤝", txt:"Trade: <b>CMC Hammer</b> ↔ <b>The Tankers</b> pending review", time:"3 hr ago"},
+  {ic:"🧊", txt:"<b>Burrow Bandits</b> used a Freeze on you last week", time:"Mon"},
+  {ic:"🏈", txt:"Week 11 lineups lock Sunday 1:00 PM ET", time:"reminder"},
+];
+
+// ============================ STATE ============================
+const QSEC = 15*60, TICK=250, BASE_SPD=20;
+const PITY_THRESHOLD = 8; // silent: guarantee a rare after this many rare-less pulls
+let app = {
+  loggedIn:false, connectedLeague:null, foundLeagues:null,
+  tab:"home", leagueTab:"scoreboard",
+  inv:{ double:1, freeze:0, surge:0, shield:0, steal:0, floor:0 },
+  earnedThisWeek:0, pityCount:0, realData:false, chat:CHAT_SEED.slice(),
+  leagueId:null, leagueData:null, sleeperUserId:null,
+  sim:null, armed:null, matchupIdx:0,
+  settings:{
+    scoring:{ passYdsPerPt:25, passTD:4, passInt:-2, rushYdsPerPt:10, rushTD:6,
+              ppr:0.5, recYdsPerPt:10, recTD:6, fumLost:-2, twoPt:2 },
+    league:{ teams:10, rosterSize:16, divisions:2, waiver:"FAAB", faab:100,
+             tradeDeadline:"Week 11", tradeReview:"Commissioner", regSeasonWeeks:14,
+             playoffTeams:6, playoffWeeks:"15-17", keepers:false },
+    powerups:{ enabled:true, weeklyCap:4, rareOdds:25, rankedMode:false },
+  },
+};
+function freshSim(){
+  myStarters.forEach(reset); oppStarters.forEach(reset);
+  return { running:false, speed:1, gameSec:0, cd:{}, feed:[], puLog:[], opNext:75,
+           others: OTHER_MATCHUPS.map(m=>({...m})) };
+}
+function reset(p){ Object.assign(p,{pts:0,frozen:0,boosted:0,mult:1,hailmary:false,shielded:0,robbed:0,floored:0,pendingScore:undefined}); }
+
+// ============================ HELPERS ============================
+const $ = (id)=>document.getElementById(id);
+const el = (tag,cls,html)=>{ const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; };
+function fmt(s){ const m=Math.floor(s/60), x=Math.floor(s%60); return m+":"+String(x).padStart(2,"0"); }
+function total(arr){ return Math.round(arr.reduce((a,p)=>a+p.pts,0)*10)/10; }
+function clk(){ const q=Math.min(3,Math.floor(app.sim.gameSec/QSEC)); const into=app.sim.gameSec-q*QSEC;
+  return { q:q+1, rem:Math.max(0,QSEC-into) }; }
+function feed(t,c){ const {q,rem}=clk(); app.sim.feed.unshift({t:`Q${q} ${fmt(rem)}`,txt:t,c}); app.sim.feed=app.sim.feed.slice(0,40); }
+function clkLabel(){ const {q,rem}=clk(); return `Q${q} ${fmt(rem)}`; }
+function logPU(side,key,target,blocked){ app.sim.puLog.push({side,key,target,t:clkLabel(),blocked:!!blocked}); }
+function ord(n){ return n===1?"st":n===2?"nd":n===3?"rd":"th"; }
+// Light opponent AI — fires a power-up at you every so often so the head-to-head feels alive.
+function maybeOpponentAI(adv){
+  app.sim.opNext -= adv;
+  if(app.sim.opNext>0) return;
+  app.sim.opNext = 130 + Math.random()*110;
+  if(Math.random()<0.5){
+    const tgt = myStarters.reduce((a,b)=> b.pts>=a.pts?b:a);
+    if(tgt.shielded>0){ feed(`🛡️ Your Bodyguard blocked Burrow Bandits' Freeze on ${tgt.name}!`,"ev-pu"); logPU("op","freeze",tgt.name,true); return; }
+    tgt.frozen=60; feed(`🧊 Burrow Bandits FROZE your ${tgt.name}!`,"ev-pu"); logPU("op","freeze",tgt.name);
+  } else {
+    const tgt = oppStarters.reduce((a,b)=> b.pts>=a.pts?b:a);
+    tgt.boosted=120; tgt.mult=2; feed(`⚡ Burrow Bandits boosted their ${tgt.name}!`,"ev-pu"); logPU("op","double",tgt.name);
+  }
+}
+function toast(msg){ const t=el("div","toast",msg); document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
+// Overlay model: write actions deep-link into Sleeper (real app would target the exact league screen).
+const SLEEPER_URL="https://sleeper.com";
+function sleeperLeagueUrl(){ return app.leagueId ? `https://sleeper.app/leagues/${app.leagueId}` : SLEEPER_URL; }
+function sleeperBtn(label){
+  const b=el("button","btn"); b.style.width="100%"; b.style.marginTop="12px";
+  b.innerHTML=label+' <span style="opacity:.65">↗</span>';
+  b.onclick=()=>window.open(sleeperLeagueUrl(),"_blank");
+  return b;
+}
+function showSpin(t){ $("overlay").innerHTML=`<div class="modal"><div class="box"><div style="font-size:34px">🔄</div><div style="margin-top:10px;font-weight:700">${t}</div></div></div>`; }
+function clearOverlay(){ $("overlay").innerHTML=""; }
+// --- REAL Sleeper API (read-only, no auth) ---
+const DEMO_LEAGUES=[
+  {name:"The Couch League", teams:10, season:"2026", scoring:"Half PPR"},
+  {name:"Sunday Scaries", teams:12, season:"2026", scoring:"Full PPR"},
+];
+function scoringLabel(l){
+  const rec = l.scoring_settings && l.scoring_settings.rec;
+  return rec===1?"Full PPR":rec===0.5?"Half PPR":rec?("PPR "+rec):"Standard";
+}
+async function findRealLeagues(username){
+  const r=await fetch(`https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`);
+  if(!r.ok) return null;
+  const u=await r.json(); if(!u||!u.user_id) return null;
+  app.sleeperUserId = u.user_id;
+  for(const season of ["2025","2024","2026"]){
+    const lr=await fetch(`https://api.sleeper.app/v1/user/${u.user_id}/leagues/nfl/${season}`);
+    if(lr.ok){ const ls=await lr.json();
+      if(ls&&ls.length) return ls.map(l=>({name:l.name, id:l.league_id, teams:l.total_rosters, season:l.season, scoring:scoringLabel(l)})); }
+  }
+  return [];
+}
+// Pull real standings (teams, records, points) for the selected league.
+async function fetchLeagueData(id){
+  const [users,rosters]=await Promise.all([
+    fetch(`https://api.sleeper.app/v1/league/${id}/users`).then(r=>r.json()),
+    fetch(`https://api.sleeper.app/v1/league/${id}/rosters`).then(r=>r.json()),
+  ]);
+  const byId={}; (users||[]).forEach(u=>byId[u.user_id]=u);
+  const standings=(rosters||[]).map(r=>{
+    const u=byId[r.owner_id]||{}; const s=r.settings||{};
+    const name=(u.metadata&&u.metadata.team_name)||u.display_name||("Team "+r.roster_id);
+    const pf=(s.fpts||0)+((s.fpts_decimal||0)/100);
+    return { team:name, w:s.wins||0, l:s.losses||0, pf:Math.round(pf*10)/10, me:r.owner_id===app.sleeperUserId };
+  }).sort((a,b)=> b.w-a.w || b.pf-a.pf);
+  return { standings };
+}
+function getStandings(){
+  return (app.leagueData && app.leagueData.standings)
+    ? app.leagueData.standings
+    : LEAGUE.slice().sort((a,b)=>b.w-a.w||b.pf-a.pf);
+}
+function statusTag(p){
+  if(!p.status) return "";
+  const map={Q:["Q","#fbbf24"],OUT:["OUT","#f87171"],IR:["IR","#f87171"],news:["NEWS","#60a5fa"]};
+  const m=map[p.status]||["•","#8b97c4"];
+  return `<span style="color:${m[1]};font-weight:800;font-size:9px;margin-right:5px">${m[0]}</span>`;
+}
+
+// ============================ SIM LOOP ============================
+function tick(){
+  if(!app.loggedIn || app.tab!=="matchup" || !app.sim || !app.sim.running) return;
+  const adv = BASE_SPD*app.sim.speed*(TICK/1000);
+  const prev = app.sim.gameSec;
+  app.sim.gameSec = Math.min(4*QSEC, app.sim.gameSec+adv);
+  if(Math.floor(prev/QSEC)!==Math.floor(app.sim.gameSec/QSEC) && app.sim.gameSec<4*QSEC)
+    feed(`— End of Q${Math.floor(app.sim.gameSec/QSEC)} —`,"ev-score");
+
+  [...myStarters,...oppStarters].forEach(p=>{
+    if(p.frozen>0){ p.frozen=Math.max(0,p.frozen-adv); if(p.frozen===0) feed(`${p.name} back in play.`,"ev-pu"); }
+    if(p.boosted>0){ p.boosted=Math.max(0,p.boosted-adv);
+      if(p.boosted===0){ if(p.hailmary&&p.pendingScore===false){p.pts=Math.max(0,p.pts-5);feed(`Hail Mary fizzled — ${p.name} -5.`,"ev-pu");}
+        p.mult=1;p.hailmary=false;p.pendingScore=undefined; } }
+    if(p.shielded>0) p.shielded=Math.max(0,p.shielded-adv);
+    if(p.robbed>0) p.robbed=Math.max(0,p.robbed-adv);
+    if(p.floored>0) p.floored=Math.max(0,p.floored-adv);
+  });
+  Object.keys(app.sim.cd).forEach(k=>{ if(app.sim.cd[k]>0) app.sim.cd[k]=Math.max(0,app.sim.cd[k]-adv); });
+
+  maybeOpponentAI(adv);
+
+  [...myStarters,...oppStarters].forEach(p=>{
+    if(p.frozen>0) return;
+    const c=POS_CFG[p.pos]; const chance = p.floored>0?1:c.rate*(adv/30);
+    if(Math.random()<chance){
+      let g = p.floored>0 ? c.min+Math.random()*(c.max-c.min)*0.4 : c.min+Math.random()*(c.max-c.min);
+      g*=p.mult; g=Math.round(g*10)/10;
+      let stolen=0;
+      if(p.robbed>0 && oppStarters.includes(p)){ stolen=Math.round(g/2*10)/10; g=Math.round((g-stolen)*10)/10;
+        const thief=myStarters.reduce((a,b)=>b.pts>=a.pts?b:a); thief.pts=Math.round((thief.pts+stolen)*10)/10; }
+      p.pts=Math.round((p.pts+g)*10)/10; if(p.hailmary)p.pendingScore=true;
+      const m=p.mult>1?` (${p.mult}×)`:""; feed(`${p.name} +${g}${m}`,"ev-score");
+      if(stolen>0) feed(`🧲 +${stolen} swiped from ${p.name}.`,"ev-pu");
+    }
+  });
+
+  // other league games tick live too
+  app.sim.others.forEach(m=>{
+    if(Math.random()<0.35*(adv/5)) m.as=Math.round((m.as+Math.random()*1.3)*10)/10;
+    if(Math.random()<0.35*(adv/5)) m.bs=Math.round((m.bs+Math.random()*1.3)*10)/10;
+  });
+
+  if(app.sim.gameSec>=4*QSEC){ app.sim.running=false;
+    const ms=total(myStarters), os=total(oppStarters);
+    feed(`FINAL — ${ms>os?"🏆 You WIN!":ms<os?"💀 You lose.":"🤝 Tie."}`,"ev-pu"); }
+  if(app.tab==="matchup") renderMatchup();
+}
+
+// ============================ POWER-UPS ============================
+function armPU(k){
+  if((app.inv[k]||0)<=0 || (app.sim.cd[k]||0)>0 || !app.sim.running) return;
+  app.armed = app.armed===k ? null : k; renderMatchup();
+}
+function usePU(k,p){
+  const cfg=POWERUPS[k];
+  const side = myStarters.includes(p)?"me":"op";
+  if(side!==cfg.target){ toast(cfg.target==="me"?"Target YOUR player":"Target the OPPONENT"); return; }
+  if((k==="freeze"||k==="steal") && p.shielded>0){
+    app.inv[k]--; app.sim.cd[k]=cfg.cd; app.armed=null;
+    feed(`🛡️ ${p.name}'s Bodyguard blocked your ${cfg.name}!`,"ev-pu"); logPU("me",k,p.name,true); renderMatchup(); return;
+  }
+  app.inv[k]--; app.sim.cd[k]=cfg.cd; app.armed=null; logPU("me",k,p.name);
+  if(k==="freeze"){ p.frozen=cfg.dur; feed(`🧊 FROZE ${p.name} for 1:00!`,"ev-pu"); }
+  else if(k==="double"){ p.boosted=cfg.dur; p.mult=2; feed(`⚡ Double Points on ${p.name}!`,"ev-pu"); }
+  else if(k==="surge"){ p.boosted=cfg.dur; p.mult=3; p.hailmary=true; p.pendingScore=false; feed(`🚀 Hail Mary on ${p.name}!`,"ev-pu"); }
+  else if(k==="shield"){ p.shielded=cfg.dur; feed(`🛡️ Bodyguard on ${p.name}.`,"ev-pu"); }
+  else if(k==="steal"){ p.robbed=cfg.dur; feed(`🧲 Pickpocket on ${p.name}!`,"ev-pu"); }
+  else if(k==="floor"){ p.floored=cfg.dur; feed(`🎯 Sure Thing on ${p.name}.`,"ev-pu"); }
+  renderMatchup();
+}
+
+// ============================ AD / EARN ============================
+// Weighted loot pool: commons are 3× as likely as rares.
+function rarityWeight(cfg){ return cfg.rarity==="rare" ? 1 : 3; }
+function pickByRarity(rarity){
+  const ks=Object.keys(POWERUPS).filter(k=>POWERUPS[k].rarity===rarity);
+  return ks[Math.floor(Math.random()*ks.length)];
+}
+function rollPowerup(){
+  let k;
+  // Silent pity timer — players never see this; it just prevents brutal cold streaks.
+  if(app.pityCount>=PITY_THRESHOLD){
+    k=pickByRarity("rare");
+  } else {
+    const pool=[];
+    Object.entries(POWERUPS).forEach(([key,cfg])=>{ for(let i=0;i<rarityWeight(cfg);i++) pool.push(key); });
+    k=pool[Math.floor(Math.random()*pool.length)];
+  }
+  app.pityCount = POWERUPS[k].rarity==="rare" ? 0 : app.pityCount+1;
+  return k;
+}
+function watchAdForMystery(){
+  if(app.earnedThisWeek>=WEEKLY_EARN_CAP){ toast("Weekly earn limit reached"); return; }
+  let left=3;
+  const ov=$("overlay");
+  const draw=()=> ov.innerHTML = `<div class="modal"><div class="box">
+      <div class="adscreen"><div class="big">📺</div><div style="font-weight:700;margin-top:8px">Sponsored</div>
+      <div class="ad-cd">Opening mystery power-up in ${left}s…</div></div>
+      <div class="muted" style="font-size:12px">🎁 You'll get a random power-up</div></div></div>`;
+  draw();
+  const iv=setInterval(()=>{ left--; if(left<=0){ clearInterval(iv); revealMystery(); } else draw(); },1000);
+}
+function revealMystery(){
+  const k=rollPowerup(), cfg=POWERUPS[k];
+  app.inv[k]=(app.inv[k]||0)+1; app.earnedThisWeek++;
+  const ov=$("overlay");
+  const tag = cfg.rarity==="rare" ? '<span class="rare-tag">RARE</span>' : '';
+  ov.innerHTML=`<div class="modal"><div class="box">
+    <div class="muted" style="font-size:12px;letter-spacing:1px">YOU UNWRAPPED</div>
+    <div style="font-size:58px;margin:10px 0">${cfg.icon}</div>
+    <div style="font-weight:800;font-size:20px">${cfg.name} ${tag}</div>
+    <div class="muted" style="font-size:12px;margin-top:8px">${cfg.desc}</div>
+    <button class="btn" id="claimBtn" style="margin-top:20px;width:100%">Add to inventory</button></div></div>`;
+  $("claimBtn").onclick=()=>{ ov.innerHTML=""; renderStore(); };
+}
+
+// ============================ RENDER: SHELL ============================
+function render(){
+  if(!app.loggedIn){ renderLogin(); return; }
+  if(!app.connectedLeague){ renderConnect(); return; }
+  $("app").innerHTML="";
+  const top=el("header","topbar");
+  top.innerHTML=`<div class="brand">🛋️ Couch Coach</div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <button id="bellBtn" class="pill" style="background:none;cursor:pointer;color:var(--gold)">🔔</button>
+      <button id="commishBtn" class="pill" style="background:none;cursor:pointer;${app.tab==='commish'?'color:#1a1300;background:var(--gold);border-color:var(--gold)':'color:var(--gold)'}">⚙️ Commish</button>
+    </div>`;
+  $("app").appendChild(top);
+  top.querySelector("#commishBtn").onclick=()=>{ app.tab="commish"; app.armed=null; render(); };
+  top.querySelector("#bellBtn").onclick=()=>{ app.tab="home"; app.armed=null; render(); };
+  const scr=el("div"); scr.id="screen"; scr.className="screen"; $("app").appendChild(scr);
+  renderTab();
+  renderNav();
+}
+function renderNav(){
+  const tabs=[["home","Home","🏟️"],["matchup","Matchup","🥊"],["team","My Team","📋"],["players","Players","🔁"],
+              ["league","League","🏆"],["store","Power-Ups","⚡"]];
+  let nav=$("nav"); if(nav) nav.remove();
+  nav=el("nav","tabbar"); nav.id="nav";
+  const inner=el("div","inner");
+  tabs.forEach(([id,label,ic])=>{
+    const b=el("button",app.tab===id?"active":"",`<span class="i">${ic}</span>${label}`);
+    b.onclick=()=>{ app.tab=id; app.armed=null; render(); };
+    inner.appendChild(b);
+  });
+  nav.appendChild(inner); document.body.appendChild(nav);
+}
+function renderTab(){
+  if(app.tab==="home") renderHome();
+  else if(app.tab==="matchup") renderMatchup();
+  else if(app.tab==="team") renderTeam();
+  else if(app.tab==="players") renderPlayers();
+  else if(app.tab==="league") renderLeague();
+  else if(app.tab==="store") renderStore();
+  else if(app.tab==="commish") renderCommish();
+}
+
+// ============================ LOGIN ============================
+function renderLogin(){
+  const a=$("app"); a.innerHTML="";
+  const w=el("div","login");
+  w.innerHTML=`
+    <div class="logo">🛋️</div>
+    <h1>Couch Coach Fantasy</h1>
+    <p class="sub">Your fantasy league — with power-ups.</p>
+    <input class="input" id="u" placeholder="Email" value="greg@couchcoach.app"/>
+    <input class="input" id="pw" type="password" placeholder="Password" value="password"/>
+    <button class="btn" id="loginBtn">Log In</button>
+    <div class="small">New here? <b style="color:var(--gold)">Sign up free</b></div>`;
+  a.appendChild(w);
+  $("loginBtn").onclick=()=>{ app.loggedIn=true; render(); };
+}
+
+// ============================ CONNECT SLEEPER ============================
+function renderConnect(){
+  const a=$("app"); a.innerHTML="";
+  const w=el("div","login");
+  let list="";
+  if(app.foundLeagues){
+    const note = app.realData
+      ? `<div class="small" style="margin-top:20px;color:var(--you)">✓ Found ${app.foundLeagues.length} real Sleeper league(s)!</div>`
+      : `<div class="small" style="margin-top:20px;color:var(--gold)">No Sleeper account by that name — showing demo leagues. Enter a real Sleeper username to pull yours live.</div>`;
+    list=note + `<div class="small" style="text-align:left;margin-top:8px">Pick a league to manage:</div>` +
+      app.foundLeagues.map((l,i)=>`<button class="card connectLeague" data-i="${i}"
+        style="width:100%;text-align:left;cursor:pointer;margin-top:10px">
+        <div style="font-weight:700">${l.name}</div>
+        <div class="muted" style="font-size:12px">${l.teams} teams · ${l.season} · ${l.scoring}</div></button>`).join("");
+  }
+  w.innerHTML=`
+    <div class="logo">🔗</div>
+    <h1>Connect Sleeper</h1>
+    <p class="sub">Couch Coach reads your league straight from Sleeper — your draft, lineups, scoring, and rosters all sync automatically. The power-ups live here.</p>
+    <input class="input" id="su" placeholder="Sleeper username" value="couchcoach_greg"/>
+    <button class="btn" id="findBtn">${app.foundLeagues?"Search again":"Find My Leagues"}</button>
+    ${list}
+    <div class="small">🔒 Read-only & secure — we never change your Sleeper team.</div>`;
+  a.appendChild(w);
+  $("findBtn").onclick=async ()=>{
+    const ov=$("overlay");
+    ov.innerHTML=`<div class="modal"><div class="box"><div style="font-size:34px">🔄</div>
+      <div style="margin-top:10px;font-weight:700">Searching Sleeper…</div>
+      <div class="muted" style="font-size:12px;margin-top:6px">Reading your leagues live</div></div></div>`;
+    const username=$("su").value.trim();
+    let leagues=null;
+    try { leagues=await findRealLeagues(username); } catch(e){ leagues=null; }
+    ov.innerHTML="";
+    if(leagues && leagues.length){ app.foundLeagues=leagues; app.realData=true; }
+    else { app.foundLeagues=DEMO_LEAGUES; app.realData=false; }
+    renderConnect();
+  };
+  a.querySelectorAll(".connectLeague").forEach(b=> b.onclick=async ()=>{
+    const lg=app.foundLeagues[+b.dataset.i];
+    app.connectedLeague=lg.name; app.leagueId=lg.id||null; app.leagueData=null;
+    if(app.realData && app.leagueId){
+      showSpin("Loading your league…");
+      try { app.leagueData=await fetchLeagueData(app.leagueId); } catch(e){ app.leagueData=null; }
+      clearOverlay();
+    }
+    app.sim=freshSim(); render();
+  });
+}
+
+// ============================ HOME DASHBOARD ============================
+function renderHome(){
+  const s=$("screen"); if(!s) return; s.innerHTML="";
+  const ms=total(myStarters), os=total(oppStarters);
+  const done=app.sim.gameSec>=4*QSEC;
+
+  const hero=el("div","card");
+  hero.innerHTML=`<h2 class="title">Week 11 · Your Matchup</h2>
+    <div class="scoreboard">
+      <div class="ts me"><div class="nm">You</div><div class="pts">${ms.toFixed(1)}</div></div>
+      <div class="clock"><div class="q">${app.sim.running?"LIVE":done?"FINAL":"PREGAME"}</div><div class="tt" style="font-size:16px">vs</div></div>
+      <div class="ts op"><div class="nm">Burrow Bandits</div><div class="pts">${os.toFixed(1)}</div></div>
+    </div>`;
+  const go=el("button","btn"); go.style.width="100%"; go.style.marginTop="10px";
+  go.textContent = app.sim.running?"▶ Back to Live Matchup":done?"View Final & Recap":"▶ Open Matchup";
+  go.onclick=()=>{ app.tab="matchup"; render(); };
+  hero.appendChild(go); s.appendChild(hero);
+
+  const invCount=Object.values(app.inv).reduce((a,b)=>a+b,0);
+  const puc=el("div","card");
+  puc.innerHTML=`<div class="row"><div><b>⚡ Power-Ups Ready</b>
+    <div class="muted" style="font-size:12px">${invCount} in your bag · ${app.earnedThisWeek}/${WEEKLY_EARN_CAP} earned this week</div></div>
+    <div style="font-size:24px;font-weight:800;color:var(--gold)">${invCount}</div></div>`;
+  const earn=el("button","btn sec"); earn.style.width="100%"; earn.style.marginTop="10px"; earn.textContent="🎁 Earn a Mystery Power-Up";
+  earn.onclick=()=>{ app.tab="store"; render(); };
+  puc.appendChild(earn); s.appendChild(puc);
+
+  const st=getStandings(); const meRow=st.find(t=>t.me); const rank=st.findIndex(t=>t.me)+1;
+  const rec=meRow?` · ${meRow.w}-${meRow.l}`:"";
+  const rankTxt=rank>0?`${rank}${ord(rank)} of ${st.length}`:`${st.length} teams`;
+  const stc=el("div","card");
+  stc.innerHTML=`<div class="row"><div><b>🏆 League Standing</b>
+    <div class="muted" style="font-size:12px">${rankTxt}${rec}${app.leagueData?' · live':''}</div></div></div>`;
+  const stb=el("button","btn sec"); stb.style.width="100%"; stb.style.marginTop="10px"; stb.textContent="View Standings";
+  stb.onclick=()=>{ app.tab="league"; app.leagueTab="standings"; render(); };
+  stc.appendChild(stb); s.appendChild(stc);
+
+  const act=el("div","card"); act.appendChild(el("h2","title","🔔 League Activity"));
+  ACTIVITY.forEach(a=> act.appendChild(el("div","",
+    `<div style="padding:9px 0;border-top:1px solid var(--line);font-size:13px">
+      <span style="margin-right:7px">${a.ic}</span>${a.txt}
+      <div class="muted" style="font-size:11px;margin-top:2px">${a.time}</div></div>`)));
+  s.appendChild(act);
+}
+function recapCard(){
+  const c=el("div","card"); c.appendChild(el("h2","title","📜 Power-Up Recap"));
+  const ms=total(myStarters), os=total(oppStarters);
+  c.appendChild(el("div","",`<div style="font-weight:800;font-size:15px;margin-bottom:4px">
+    ${ms>os?'🏆 You won '+ms.toFixed(1)+'–'+os.toFixed(1):ms<os?'💀 Lost '+ms.toFixed(1)+'–'+os.toFixed(1):'🤝 Tie '+ms.toFixed(1)}</div>`));
+  if(!app.sim.puLog.length){ c.appendChild(el("div","muted","<div style='font-size:13px'>No power-ups used this game.</div>")); return c; }
+  app.sim.puLog.forEach(e=>{
+    const cfg=POWERUPS[e.key]; const who=e.side==="me"?"You":"Burrow Bandits";
+    c.appendChild(el("div","",`<div style="padding:7px 0;border-top:1px solid var(--line);font-size:13px">
+      <span style="margin-right:6px">${cfg.icon}</span>
+      <b style="color:${e.side==='me'?'var(--you)':'var(--opp)'}">${who}</b>
+      ${e.blocked?'tried '+cfg.name+' (blocked 🛡️)':'used <b>'+cfg.name+'</b>'} on ${e.target}
+      <span class="muted">· ${e.t}</span></div>`));
+  });
+  return c;
+}
+
+// ============================ MATCHUP ============================
+function renderMatchup(){
+  const s=$("screen"); if(!s) return; s.innerHTML="";
+  const others = app.sim.others||[];
+  const all = [{your:true, a:"Your Team", b:"Burrow Bandits"}, ...others.map(m=>({your:false, ...m}))];
+  if(app.matchupIdx>=all.length) app.matchupIdx=0;
+  const idx=app.matchupIdx; const m=all[idx];
+  const done=app.sim.gameSec>=4*QSEC;
+  const {q,rem}=clk();
+
+  // matchup navigation
+  const nav=el("div","row"); nav.style.marginBottom="12px";
+  const prev=el("button","btn sec","‹"); prev.style.padding="10px 16px";
+  const next=el("button","btn sec","›"); next.style.padding="10px 16px";
+  prev.onclick=()=>{ app.matchupIdx=(idx-1+all.length)%all.length; app.armed=null; renderMatchup(); };
+  next.onclick=()=>{ app.matchupIdx=(idx+1)%all.length; app.armed=null; renderMatchup(); };
+  const label=el("div","",`<div style="text-align:center">
+    <div style="font-size:13px;font-weight:700">${m.your?"🏈 Your Matchup":"🔭 Spectating"}</div>
+    <div class="muted" style="font-size:11px">Matchup ${idx+1} of ${all.length}</div></div>`);
+  label.style.flex="1";
+  nav.append(prev,label,next); s.appendChild(nav);
+
+  // scoreboard (works for your game or a spectated one)
+  const lp = m.your ? total(myStarters) : m.as;
+  const rp = m.your ? total(oppStarters) : m.bs;
+  const sb=el("div","card");
+  sb.innerHTML=`<div class="scoreboard">
+    <div class="ts me"><div class="nm">${m.a}</div><div class="pts">${lp.toFixed(1)}</div></div>
+    <div class="clock"><div class="q">${app.sim.gameSec===0&&!app.sim.running?"PREGAME":done?"FINAL":"Q"+q}</div>
+      <div class="tt">${done?"0:00":fmt(rem)}</div>
+      <div class="st">${done?"Final":app.sim.running?(m.your&&app.armed?"⚠ pick target":"LIVE"):"Paused"}</div></div>
+    <div class="ts op"><div class="nm">${m.b}</div><div class="pts">${rp.toFixed(1)}</div></div>
+  </div>`;
+  s.appendChild(sb);
+
+  // Spectator view — read-only, no power-ups
+  if(!m.your){
+    const lead = lp>rp ? `${m.a} leads by ${(lp-rp).toFixed(1)}` : rp>lp ? `${m.b} leads by ${(rp-lp).toFixed(1)}` : "All tied up";
+    s.appendChild(el("div","card",`<div style="text-align:center;font-weight:700;font-size:15px">${lead}</div>
+      <div class="muted" style="font-size:12px;text-align:center;margin-top:6px">🔭 Spectating — power-ups can only be used in your own matchup.</div>`));
+    const jump=el("button","btn sec"); jump.style.width="100%"; jump.textContent="← Back to my matchup";
+    jump.onclick=()=>{ app.matchupIdx=0; renderMatchup(); };
+    s.appendChild(jump);
+    return;
+  }
+
+  s.appendChild(el("div","muted","<div style='font-size:11px;margin:-2px 0 12px;text-align:center'>🎮 Demo game — power-up gameplay preview. Live NFL scoring activates during the season.</div>"));
+
+  const ctl=el("div","row"); ctl.style.marginBottom="14px";
+  const start=el("button","btn", app.sim.running?"⏸ Pause":(app.sim.gameSec>0?"▶ Resume":"▶ Kick Off"));
+  start.onclick=()=>{ if(app.sim.gameSec>=4*QSEC)return; app.sim.running=!app.sim.running;
+    if(app.sim.running&&app.sim.gameSec===0)feed("Kickoff! Live.","ev-pu"); renderMatchup(); };
+  const spd=el("button","btn sec","⏩ "+app.sim.speed+"x");
+  spd.onclick=()=>{ const a=[1,2,4]; app.sim.speed=a[(a.indexOf(app.sim.speed)+1)%3]; renderMatchup(); };
+  const rs=el("button","btn sec","↺ Reset");
+  rs.onclick=()=>{ app.sim=freshSim(); app.armed=null; renderMatchup(); };
+  ctl.append(start,spd,rs); s.appendChild(ctl);
+
+  if(done && app.sim.puLog.length) s.appendChild(recapCard());
+
+  const trayCard=el("div","card");
+  trayCard.appendChild(el("h2","title","Your Power-Ups — tap to arm, then tap a player"));
+  const tray=el("div","puwrap");
+  Object.entries(POWERUPS).forEach(([k,cfg])=>{
+    const have=app.inv[k]||0, cd=app.sim.cd[k]||0;
+    const dis = have<=0||cd>0||!app.sim.running;
+    const chip=el("div","puchip"+(app.armed===k?" armed":"")+(dis?" disabled":""));
+    chip.innerHTML=`<div class="ic">${cfg.icon}</div><div class="nm">${cfg.name}</div>
+      <div class="ct">${cd>0?"cd "+Math.ceil(cd)+"s":"x"+have}</div>
+      ${cd>0?`<div class="cdbar" style="width:${cd/cfg.cd*100}%"></div>`:""}`;
+    chip.onclick=()=>armPU(k);
+    tray.appendChild(chip);
+  });
+  trayCard.appendChild(tray);
+  if(Object.values(app.inv).every(v=>v<=0))
+    trayCard.appendChild(el("div","muted","<div style='font-size:12px;margin-top:8px'>Out of power-ups — earn more in the ⚡ Power-Ups tab.</div>"));
+  s.appendChild(trayCard);
+
+  s.appendChild(lineupCard("Your Starters", myStarters, "me"));
+  s.appendChild(lineupCard("Burrow Bandits", oppStarters, "op"));
+
+  const fc=el("div","card"); fc.appendChild(el("h2","title","Live Feed"));
+  const f=el("div","feed");
+  app.sim.feed.forEach(x=> f.appendChild(el("div","ln",`<span class="t">${x.t}</span><span class="${x.c}">${x.txt}</span>`)));
+  fc.appendChild(f); s.appendChild(fc);
+}
+function lineupCard(title, arr, side){
+  const c=el("div","card"); c.appendChild(el("h2","title",title));
+  const armedCfg=app.armed?POWERUPS[app.armed]:null;
+  const tappable=armedCfg && armedCfg.target===side;
+  arr.forEach(p=>{
+    let cls="plr"+(p.frozen>0?" frozen":"")+(p.boosted>0?" boosted":"")+(tappable?" tappable":"");
+    const fx=[];
+    if(p.frozen>0)fx.push(`🧊 ${fmt(p.frozen)}`);
+    if(p.boosted>0)fx.push(`${p.hailmary?"🚀3×":"⚡2×"} ${fmt(p.boosted)}`);
+    if(p.floored>0)fx.push(`🎯 ${fmt(p.floored)}`);
+    if(p.shielded>0)fx.push(`🛡️ ${fmt(p.shielded)}`);
+    if(p.robbed>0)fx.push(`🧲 ${fmt(p.robbed)}`);
+    const d=el("div",cls,`<div class="pos">${p.pos}</div>
+      <div><div class="nm">${p.name}</div><div class="meta2">${fx.length?fx.join(" · "):statusTag(p)+p.opp}</div></div>
+      <div class="pt">${p.pts.toFixed(1)}</div>`);
+    if(tappable) d.onclick=()=>usePU(app.armed,p);
+    c.appendChild(d);
+  });
+  return c;
+}
+
+// ============================ MY TEAM (synced from Sleeper) ============================
+function roRow(p){
+  return el("div","plr",`<div class="pos">${p.pos}</div>
+    <div><div class="nm">${p.name}</div><div class="meta2">${statusTag(p)}${p.opp} · proj ${p.proj}</div></div>
+    <div class="pt">${p.proj}</div>`);
+}
+function renderTeam(){
+  const s=$("screen"); s.innerHTML="";
+  const head=el("div","card");
+  head.innerHTML=`<h2 class='title'>Your Lineup — Week 11</h2>
+    <div class='muted' style='font-size:12px'>🔗 Synced from <b style="color:var(--txt)">${app.connectedLeague}</b> on Sleeper. Edit your lineup in Sleeper and it updates here automatically — lineups lock at kickoff.</div>`;
+  head.appendChild(sleeperBtn("✏️ Set Lineup in Sleeper"));
+  s.appendChild(head);
+  const start=el("div","card"); start.appendChild(el("h2","title","Starters"));
+  myStarters.forEach(p=> start.appendChild(roRow(p))); s.appendChild(start);
+  const bench=el("div","card"); bench.appendChild(el("h2","title","Bench"));
+  myBench.forEach(p=> bench.appendChild(roRow(p))); s.appendChild(bench);
+}
+
+// ============================ PLAYERS (browse here, claim in Sleeper) ============================
+function renderPlayers(){
+  const s=$("screen"); s.innerHTML="";
+  const head=el("div","card");
+  head.innerHTML=`<h2 class='title'>Free Agents & Waiver Wire</h2>
+    <div class='muted' style='font-size:12px'>FAAB budget: <b style='color:var(--gold)'>$74</b> · Browse here, claim in Sleeper. Waivers process in Sleeper, Wed 3 AM.</div>`;
+  head.appendChild(sleeperBtn("🔁 Manage Waivers in Sleeper"));
+  s.appendChild(head);
+  const c=el("div","card");
+  FREE_AGENTS.forEach(p=>{
+    const row=el("div","plr",`<div class="pos">${p.pos}</div>
+      <div><div class="nm">${p.name}</div><div class="meta2">${statusTag(p)}${p.opp} · proj ${p.proj}</div></div>
+      <div></div>`);
+    const add=el("button","btn sm sec","Add ↗"); add.style.marginLeft="auto";
+    add.onclick=()=>window.open(sleeperLeagueUrl(),"_blank");
+    row.lastElementChild.appendChild(add);
+    c.appendChild(row);
+  });
+  s.appendChild(c);
+}
+
+// ============================ LEAGUE ============================
+function renderLeague(){
+  const s=$("screen"); s.innerHTML="";
+  const ts=el("div","tabset");
+  [["scoreboard","Scores"],["standings","Standings"],["schedule","Schedule"],["chat","Trash Talk"]].forEach(([id,lab])=>{
+    const b=el("button",app.leagueTab===id?"on":"",lab); b.onclick=()=>{app.leagueTab=id;renderLeague();}; ts.appendChild(b);
+  });
+  s.appendChild(ts);
+
+  if(app.leagueTab==="scoreboard"){
+    if(app.leagueData) s.appendChild(el("div","muted","<div style='font-size:11px;margin-bottom:10px;text-align:center'>🎮 Demo scores — live weekly matchups populate here during the NFL season.</div>"));
+    const me=el("div","card");
+    me.innerHTML=`<h2 class="title">Your Matchup</h2>
+      <div class="row"><div><b style="color:var(--you)">Your Team</b><div class="muted" style="font-size:12px">7-3</div></div>
+      <div style="font-size:22px;font-weight:800">${total(myStarters).toFixed(1)} – ${total(oppStarters).toFixed(1)}</div>
+      <div style="text-align:right"><b style="color:var(--opp)">Burrow Bandits</b><div class="muted" style="font-size:12px">6-4</div></div></div>`;
+    s.appendChild(me);
+    OTHER_MATCHUPS.forEach(m=>{
+      const c=el("div","card");
+      c.innerHTML=`<div class="row"><div>${m.a}</div><b>${m.as}</b></div>
+        <div class="row" style="margin-top:6px"><div>${m.b}</div><b>${m.bs}</b></div>`;
+      s.appendChild(c);
+    });
+  } else if(app.leagueTab==="standings"){
+    const c=el("div","card");
+    if(app.leagueData) c.appendChild(el("div","muted","<div style='font-size:11px;margin-bottom:8px;color:var(--you)'>✓ Live from Sleeper</div>"));
+    let html=`<table class="std"><tr><th>#</th><th>Team</th><th>W-L</th><th>PF</th></tr>`;
+    getStandings().forEach((t,i)=>{
+      html+=`<tr class="${t.me?'me':''}"><td>${i+1}</td><td>${t.team}</td><td>${t.w}-${t.l}</td><td>${t.pf}</td></tr>`;
+    });
+    html+=`</table>`; c.innerHTML+=html; s.appendChild(c);
+  } else if(app.leagueTab==="schedule"){
+    const c=el("div","card"); c.appendChild(el("h2","title","Your Schedule — 2026"));
+    SCHEDULE.forEach(g=>{
+      const r=el("div","schrow",`<span class="wk">Wk ${g.wk}</span>
+        <span style="flex:1">${g.opp}</span>
+        <span class="res ${g.res==='W'?'w':g.res==='L'?'l':''}">${g.res==='—'?g.s:g.res+' '+g.s}</span>`);
+      c.appendChild(r);
+    });
+    s.appendChild(c);
+  } else {
+    const c=el("div","card"); c.appendChild(el("h2","title","League Chat"));
+    const box=el("div"); box.style.maxHeight="46vh"; box.style.overflowY="auto"; box.style.marginBottom="4px";
+    app.chat.forEach(m=>{
+      box.appendChild(el("div","",`<div style="margin-bottom:12px">
+        <b style="color:${m.me?'var(--you)':'var(--gold)'};font-size:13px">${m.who}</b>
+        <span class="muted" style="font-size:11px;margin-left:6px">${m.time}</span>
+        <div style="font-size:14px;margin-top:2px">${m.text}</div></div>`));
+    });
+    c.appendChild(box); s.appendChild(c);
+    const rowi=el("div","row");
+    const i=el("input","input"); i.placeholder="Talk some trash…"; i.style.margin="0";
+    const send=el("button","btn"); send.textContent="Send";
+    const fire=()=>{ const v=i.value.trim(); if(!v)return; app.chat.push({who:"You",me:true,text:v,time:"now"}); renderLeague(); };
+    send.onclick=fire; i.addEventListener("keydown",e=>{ if(e.key==="Enter")fire(); });
+    rowi.append(i,send); s.appendChild(rowi);
+    i.focus();
+  }
+}
+
+// ============================ STORE / EARN ============================
+function renderStore(){
+  const s=$("screen"); if(!s) return; s.innerHTML="";
+  const capped=app.earnedThisWeek>=WEEKLY_EARN_CAP;
+  const head=el("div","card");
+  head.innerHTML=`<h2 class="title">Earn a Mystery Power-Up</h2>
+    <div class="muted" style="font-size:13px">You get <b style="color:var(--gold)">1 free</b> power-up each week. Watch a short ad for a <b style="color:var(--gold)">random</b> one — weighted toward commons, so rares stay special.</div>
+    <div class="row" style="margin-top:10px;font-size:12px"><span>Earned this week</span><span><b>${app.earnedThisWeek}/${WEEKLY_EARN_CAP}</b></span></div>
+    <div class="cap-bar"><div style="width:${app.earnedThisWeek/WEEKLY_EARN_CAP*100}%"></div></div>`;
+  const mbtn=el("button","btn"); mbtn.style.marginTop="14px"; mbtn.style.width="100%"; mbtn.style.fontSize="15px";
+  mbtn.textContent = capped ? "Weekly limit reached — back next week" : "📺 Watch Ad → 🎁 Mystery Power-Up";
+  mbtn.disabled=capped; mbtn.onclick=watchAdForMystery;
+  head.appendChild(mbtn);
+  head.appendChild(el("div","muted","<div style='font-size:11px;margin-top:10px;text-align:center'>Drop odds: 🟢 Common 75% &nbsp;·&nbsp; 🟠 Rare 25%</div>"));
+  s.appendChild(head);
+
+  const inv=el("div","card"); inv.appendChild(el("h2","title","Your Inventory"));
+  Object.entries(POWERUPS).forEach(([k,cfg])=>{
+    const item=el("div","store-item"); item.style.padding="10px 0"; item.style.borderTop="1px solid var(--line)";
+    const owned=app.inv[k]||0;
+    item.innerHTML=`<div class="ic">${cfg.icon}</div>
+      <div><div style="font-weight:700;font-size:14px">${cfg.name}
+        ${cfg.rarity==="rare"?'<span class="rare-tag">RARE</span>':''}</div>
+        <div class="muted" style="font-size:11px">${cfg.desc}</div></div>
+      <div class="pt" style="font-size:18px;color:${owned>0?'var(--gold)':'var(--muted)'}">×${owned}</div>`;
+    inv.appendChild(item);
+  });
+  s.appendChild(inv);
+
+  const pass=el("div","card");
+  pass.innerHTML=`<div class="row"><div><b style="color:var(--gold)">⭐ Season Pass</b>
+    <div class="muted" style="font-size:12px;margin-top:4px">No ads · auto-claim a power-up bundle every week · exclusive skins</div></div></div>`;
+  const upg=el("button","btn"); upg.style.marginTop="12px"; upg.style.width="100%"; upg.textContent="Upgrade — $14.99 / season";
+  upg.onclick=()=>toast("Season Pass — coming soon 💰");
+  pass.appendChild(upg);
+  s.appendChild(pass);
+}
+
+// ============================ COMMISSIONER ============================
+function cRow(label, hint, control){
+  const r=el("div","row"); r.style.padding="11px 0"; r.style.borderTop="1px solid var(--line)";
+  const left=el("div");
+  left.innerHTML=`<div style="font-size:14px">${label}</div>${hint?`<div class="muted" style="font-size:11px">${hint}</div>`:""}`;
+  r.append(left, control); return r;
+}
+function cNum(val, step, onchange){
+  const i=el("input","input"); i.type="number"; i.value=val; i.step=step||"1";
+  i.style.width="84px"; i.style.margin="0"; i.style.textAlign="right";
+  i.oninput=()=>onchange(parseFloat(i.value)); return i;
+}
+function cSeg(options, current, onpick){
+  const w=el("div"); w.style.display="flex"; w.style.gap="6px";
+  options.forEach(([v,lab])=>{ const b=el("button","btn sm"); b.textContent=lab;
+    if(current!==v){ b.classList.add("sec"); }
+    b.onclick=()=>onpick(v); w.appendChild(b); });
+  return w;
+}
+function cSel(options, current, onpick){
+  const sel=el("select","input"); sel.style.width="auto"; sel.style.margin="0"; sel.style.fontSize="13px";
+  options.forEach(o=>{ const op=el("option"); op.value=o; op.textContent=o; if(o===current)op.selected=true; sel.appendChild(op); });
+  sel.onchange=()=>onpick(sel.value); return sel;
+}
+function cToggle(current, onpick){
+  const b=el("button","btn sm"+(current?"":" sec")); b.textContent=current?"On":"Off";
+  b.onclick=()=>onpick(!current); return b;
+}
+function renderCommish(){
+  const s=$("screen"); if(!s) return; s.innerHTML="";
+  const sc=app.settings.scoring, lg=app.settings.league, pu=app.settings.powerups;
+
+  const intro=el("div","card");
+  intro.innerHTML=`<h2 class="title">⚙️ Commissioner — League Settings</h2>
+    <div class="muted" style="font-size:12px">Scoring & league rules are mirrored from <b style="color:var(--txt)">${app.connectedLeague}</b> on Sleeper. The <b style="color:var(--gold)">⚡ Power-Up Rules</b> below are Couch Coach's own — set them here.</div>`;
+  intro.appendChild(sleeperBtn("Edit League Settings in Sleeper"));
+  s.appendChild(intro);
+
+  // Scoring presets
+  const presets=el("div","card");
+  presets.appendChild(el("h2","title","Scoring Preset"));
+  const pr=el("div"); pr.style.display="flex"; pr.style.gap="8px"; pr.style.flexWrap="wrap";
+  [["Standard",0],["Half PPR",0.5],["Full PPR",1]].forEach(([lab,val])=>{
+    const b=el("button","btn sm"+(sc.ppr===val?"":" sec")); b.textContent=lab;
+    b.onclick=()=>{ sc.ppr=val; renderCommish(); }; pr.appendChild(b);
+  });
+  presets.appendChild(pr);
+  presets.appendChild(el("div","muted","<div style='font-size:11px;margin-top:8px'>Presets just set reception points — fine-tune everything below.</div>"));
+  s.appendChild(presets);
+
+  // Scoring detail
+  const scoring=el("div","card"); scoring.appendChild(el("h2","title","Scoring Rules"));
+  scoring.append(
+    cRow("Passing yards","1 point per N yards", cNum(sc.passYdsPerPt,1,v=>sc.passYdsPerPt=v)),
+    cRow("Passing TD","points", cNum(sc.passTD,1,v=>sc.passTD=v)),
+    cRow("Interception","points", cNum(sc.passInt,1,v=>sc.passInt=v)),
+    cRow("Rushing yards","1 point per N yards", cNum(sc.rushYdsPerPt,1,v=>sc.rushYdsPerPt=v)),
+    cRow("Rushing TD","points", cNum(sc.rushTD,1,v=>sc.rushTD=v)),
+    cRow("Reception (PPR)","points per catch", cSeg([[0,"0"],[0.5,"0.5"],[1,"1"]], sc.ppr, v=>{sc.ppr=v;renderCommish();})),
+    cRow("Receiving yards","1 point per N yards", cNum(sc.recYdsPerPt,1,v=>sc.recYdsPerPt=v)),
+    cRow("Receiving TD","points", cNum(sc.recTD,1,v=>sc.recTD=v)),
+    cRow("Fumble lost","points", cNum(sc.fumLost,1,v=>sc.fumLost=v)),
+    cRow("2-point conversion","points", cNum(sc.twoPt,1,v=>sc.twoPt=v)),
+  );
+  s.appendChild(scoring);
+
+  // League setup
+  const setup=el("div","card"); setup.appendChild(el("h2","title","League Setup"));
+  setup.append(
+    cRow("Number of teams","8–16", cNum(lg.teams,1,v=>lg.teams=v)),
+    cRow("Roster size","spots per team", cNum(lg.rosterSize,1,v=>lg.rosterSize=v)),
+    cRow("Divisions","0 for none", cNum(lg.divisions,1,v=>lg.divisions=v)),
+  );
+  s.appendChild(setup);
+
+  // Acquisitions & trades
+  const acq=el("div","card"); acq.appendChild(el("h2","title","Acquisitions & Trades"));
+  acq.append(
+    cRow("Waiver type","", cSel(["FAAB","Rolling priority","Reverse standings"], lg.waiver, v=>{lg.waiver=v;renderCommish();})),
+  );
+  if(lg.waiver==="FAAB") acq.append(cRow("FAAB budget","$ per team / season", cNum(lg.faab,1,v=>lg.faab=v)));
+  acq.append(
+    cRow("Trade deadline","", cSel(["Week 9","Week 10","Week 11","Week 12","No deadline"], lg.tradeDeadline, v=>{lg.tradeDeadline=v;renderCommish();})),
+    cRow("Trade review","who approves", cSel(["Commissioner","League vote","No review"], lg.tradeReview, v=>{lg.tradeReview=v;renderCommish();})),
+  );
+  s.appendChild(acq);
+
+  // Schedule & playoffs
+  const sch=el("div","card"); sch.appendChild(el("h2","title","Schedule & Playoffs"));
+  sch.append(
+    cRow("Regular season weeks","", cNum(lg.regSeasonWeeks,1,v=>lg.regSeasonWeeks=v)),
+    cRow("Playoff teams","", cNum(lg.playoffTeams,1,v=>lg.playoffTeams=v)),
+    cRow("Playoff weeks","", cSel(["14-16","15-17","16-18"], lg.playoffWeeks, v=>{lg.playoffWeeks=v;renderCommish();})),
+    cRow("Keeper / dynasty","carry players year to year", cToggle(lg.keepers, v=>{lg.keepers=v;renderCommish();})),
+  );
+  s.appendChild(sch);
+
+  // Power-up rules (our unique layer)
+  const pwr=el("div","card"); pwr.appendChild(el("h2","title","⚡ Power-Up Rules"));
+  pwr.append(
+    cRow("Power-ups enabled","turn the whole feature on/off", cToggle(pu.enabled, v=>{pu.enabled=v;renderCommish();})),
+    cRow("Weekly earn cap","ad-earned per manager", cNum(pu.weeklyCap,1,v=>pu.weeklyCap=v)),
+    cRow("Rare drop odds %","chance of a rare per pull", cNum(pu.rareOdds,1,v=>pu.rareOdds=v)),
+    cRow("Ranked mode","everyone gets the SAME fixed set — no ads, pure skill", cToggle(pu.rankedMode, v=>{pu.rankedMode=v;renderCommish();})),
+  );
+  if(pu.rankedMode) pwr.appendChild(el("div","muted","<div style='font-size:11px;margin-top:8px;color:var(--gold)'>Ranked mode on: ad-earning is disabled and every manager gets an identical power-up loadout each week.</div>"));
+  s.appendChild(pwr);
+
+  const save=el("button","btn"); save.style.width="100%"; save.style.marginBottom="20px"; save.textContent="Save League Settings";
+  save.onclick=()=>toast("League settings saved ✓");
+  s.appendChild(save);
+}
+
+// ============================ BOOT ============================
+render();
+setInterval(tick, TICK);
+</script>
+</body>
+</html>
